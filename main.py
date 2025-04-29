@@ -80,6 +80,7 @@ loader = WebBaseLoader(
     bs_kwargs=dict(parse_only=bs4.SoupStrainer(class_=("post-content", "post-title", "post-header"))), 
 )
 
+# TODO: Feed the model with the real data
 # from langchain_community.document_loaders import GoogleDocsLoader
 # DOC_ID = "YOUR_GOOGLE_DOC_ID"
 # loader = GoogleDocsLoader(document_ids=[DOC_ID])
@@ -194,19 +195,19 @@ if __name__ == "__main__":
     # ):
     #     step["messages"][-1].pretty_print()
 
-    input_message = "What is Task Decomposition?"
-    final_response = None
+    # input_message = "What is Task Decomposition?"
+    # final_response = None
 
-    for step in graph.stream(
-        {"messages": [{"role": "user", "content": input_message}]},
-        stream_mode="values",
-        config=config
-    ):
-        last_message = step["messages"][-1].content
-        if last_message:
-            final_response = last_message
+    # for step in graph.stream(
+    #     {"messages": [{"role": "user", "content": input_message}]},
+    #     stream_mode="values",
+    #     config=config
+    # ):
+    #     last_message = step["messages"][-1].content
+    #     if last_message:
+    #         final_response = last_message
 
-    print("\nRESPONSE:", final_response if final_response else "No response")
+    # print("\nRESPONSE:", final_response if final_response else "No response")
         
     # input_message = "Can you look up some common ways of doing it?"
 
@@ -216,3 +217,32 @@ if __name__ == "__main__":
     #     config=config,
     # ):
     #     step["messages"][-1].pretty_print()
+    from flask import Flask, render_template, request
+
+    def get_response(input_message: str):
+        final_response = None
+        for step in graph.stream(
+            {"messages": [{"role": "user", "content": input_message}]},
+            stream_mode="values",
+            config={"configurable": {"thread_id": "test_123"}}
+        ):
+            last_message = step["messages"][-1].content
+            if last_message:
+                final_response = last_message
+        return final_response if final_response else "No response"
+    
+    app = Flask(__name__)
+
+    @app.route("/", methods=["GET", "POST"])
+    def index():
+        response = None
+        if request.method == "POST":
+            input_message = request.form["input_message"]
+            
+            # Call the function to get the response from the graph
+            response = get_response(input_message)
+
+        return render_template("index.html", response=response)
+
+    if __name__ == "__main__":
+        app.run(debug=True, host='0.0.0.0', port=5001)
