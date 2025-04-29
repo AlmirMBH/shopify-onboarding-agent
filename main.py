@@ -1,15 +1,68 @@
-import getpass
 import os
+import getpass
+import sys
+import subprocess
+import subprocess
+import sys
+
+# Set the Environment Variables
+os.environ['USER_AGENT'] = 'myagent'
+os.environ["LANGSMITH_TRACING"] = "true"
+os.environ["LANGSMITH_API_KEY"] = getpass.getpass("Enter LangSmith API key: ")
+
+if not os.environ.get("GROQ_API_KEY"):
+    os.environ["GROQ_API_KEY"] = getpass.getpass("Enter API key for Groq: ")
+
+os.environ["HF_TOKEN"] = getpass.getpass("Enter Huggingface token: ")
+
+if not os.environ.get("MISTRAL_API_KEY"):
+    os.environ["MISTRAL_API_KEY"] = getpass.getpass("Enter API key for MistralAI: ")
+
+# import requests
+# headers = {"Authorization": f"Bearer {os.environ.get('HF_TOKEN')}"}
+# response = requests.get("https://huggingface.co/api/whoami-v2", headers=headers)
+# if response.status_code == 200:
+#     print("✅ Hugging Face token is valid.")
+# else:
+#     print("❌ Hugging Face token is invalid or unauthorized.")
+
+
+
+# Install Packages
+def install(*packages):
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", *packages])
+    except subprocess.CalledProcessError as e:
+        print(f"Error installing packages: {e}")
+        sys.exit(1)
+
+def validate_and_install(packages):
+    for package in packages:
+        try:
+            __import__(package)
+            print(f"{package} is already installed.")
+        except ImportError:
+            print(f"{package} not found. Installing...")
+            install(package)
+
+packages_to_validate = [
+    "langchain_groq",
+    "langchain_mistralai",
+    "langchain_community",
+    "beautifulsoup4",
+    "langgraph",
+    "pandas"
+]
+
+validate_and_install(packages_to_validate)
 import bs4
+
+# Import the Required Libraries
 from langchain.chat_models import init_chat_model
-!pip install -U langchain-groq
-!pip install -qU langchain-mistralai
-from langchain_mistralai import MistralAIEmbedding
-!pip install -qU langchain_community beautifulsoup4
+from langchain_mistralai import MistralAIEmbeddings
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.vectorstores import InMemoryVectorStore
-!pip install -qU langgraph
 from langgraph.graph import MessagesState, StateGraph
 from langchain_core.tools import tool
 from langchain_core.messages import SystemMessage
@@ -18,27 +71,8 @@ from langgraph.graph import END
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver
 
-os.environ['USER_AGENT'] = 'paai-agent'
-os.environ["LANGSMITH_TRACING"] = "true"
-
-# os.environ["LANGSMITH_API_KEY"] = "add-your-key"
-os.environ["LANGSMITH_API_KEY"] = getpass.getpass("Enter LangSmith API key: ")
-
-if not os.environ.get("GROQ_API_KEY"):
-    # os.environ["GROQ_API_KEY"] = "add-your-key"
-    os.environ["GROQ_API_KEY"] = getpass.getpass("Enter API key for Groq: ")
-
 llm = init_chat_model("llama3-8b-8192", model_provider="groq")
-
-# os.environ["HF_TOKEN"] = "add-your-key"
-os.environ["HF_TOKEN"] = getpass.getpass("Enter Huggingface token: ")
-
-if not os.environ.get("MISTRAL_API_KEY"):
-    os.environ["MISTRAL_API_KEY"] = getpass.getpass("Enter API key for MistralAI: ")
-    # os.environ["MISTRAL_API_KEY"] = "add-your-key"
-
 embeddings = MistralAIEmbeddings(model="mistral-embed")
-
 vector_store = InMemoryVectorStore(embeddings)
 
 loader = WebBaseLoader(
@@ -46,13 +80,16 @@ loader = WebBaseLoader(
     bs_kwargs=dict(parse_only=bs4.SoupStrainer(class_=("post-content", "post-title", "post-header"))), 
 )
 
-docs = loader.load()
+# from langchain_community.document_loaders import GoogleDocsLoader
+# DOC_ID = "YOUR_GOOGLE_DOC_ID"
+# loader = GoogleDocsLoader(document_ids=[DOC_ID])
 
+docs = loader.load()
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
 all_splits = text_splitter.split_documents(docs)
 _ = vector_store.add_documents(documents=all_splits)
-
 graph_builder = StateGraph(MessagesState)
+
 
 @tool(response_format="content_and_artifact")
 def retrieve(query: str):
@@ -63,6 +100,7 @@ def retrieve(query: str):
         for doc in retrieved_docs
     )
     return serialized, retrieved_docs
+
 
 def query_or_respond(state: MessagesState):
     system_message = SystemMessage( # Append a clear system instruction
@@ -84,7 +122,9 @@ def query_or_respond(state: MessagesState):
         return {"messages": [fallback]}
     return {"messages": [response]}
 
+
 tools = ToolNode([retrieve])
+
 
 def generate(state: MessagesState):
     # Get generated ToolMessages
@@ -99,7 +139,8 @@ def generate(state: MessagesState):
     tool_messages = recent_tool_messages[::-1]
 
     # Format into prompt
-    docs_content = "\n\n".join(tool_messages.content for tool_message in tool_messages)
+    # docs_content = "\n\n".join(tool_messages.content for tool_message in tool_messages)
+    docs_content = "\n\n".join(tool_message.content for tool_message in tool_messages if hasattr(tool_message, 'content'))
 
     system_message_content = (
         "You are an assistant for question-answering tasks. "
@@ -122,11 +163,12 @@ def generate(state: MessagesState):
     response = llm.invoke(prompt)
     return {"messages": [response]}
 
+
 graph_builder.add_node(query_or_respond)
 graph_builder.add_node(tools)
 graph_builder.add_node(generate)
-
 graph_builder.set_entry_point("query_or_respond")
+
 graph_builder.add_conditional_edges(
     "query_or_respond",
     tools_condition,
@@ -136,38 +178,41 @@ graph_builder.add_conditional_edges(
 graph_builder.add_edge("tools", "generate")
 graph_builder.add_edge("generate", END)
 
-# Init chat persistance
-memory = MemorySaver()
+memory = MemorySaver() # Init chat persistance
+graph = graph_builder.compile(checkpointer=memory) # Compile with the peristance layer (similar to git logs)
+config = {"configurable": {"thread_id": "test_123"}} # Specify an ID for the thread (similar to git branch)
 
-# Compile with the peristance layer (similar to git logs)
-graph = graph_builder.compile(checkpointer=memory)
+if __name__ == "__main__":
+    
 
-# Specify an ID for the thread (similar to git branch)
-config = {"configurable": {"thread_id": "test_123"}}
+    # TODO: Create a simple prompt window
+    # input_message = "Mr. Chat, how do you do!"
+    # for step in graph.stream(
+    #     {"messages": [{"role": "user", "content": input_message}]},
+    #     stream_mode="values",
+    #     config=config
+    # ):
+    #     step["messages"][-1].pretty_print()
 
-input_message = "Mr. Chat, how do you do!"
-for step in graph.stream(
-    {"messages": [{"role": "user", "content": input_message}]},
-    stream_mode="values",
-    config=config
-):
-    step["messages"][-1].pretty_print()
+    input_message = "What is Task Decomposition?"
+    final_response = None
 
-input_message = "What is Task Decomposition?"
+    for step in graph.stream(
+        {"messages": [{"role": "user", "content": input_message}]},
+        stream_mode="values",
+        config=config
+    ):
+        last_message = step["messages"][-1].content
+        if last_message:
+            final_response = last_message
 
-for step in graph.stream(
-    {"messages": [{"role": "user", "content": input_message}]},
-    stream_mode="values",
-    config=config
-):
-    step["messages"][-1].pretty_print()
+    print("\nRESPONSE:", final_response if final_response else "No response")
+        
+    # input_message = "Can you look up some common ways of doing it?"
 
-
-input_message = "Can you look up some common ways of doing it?"
-
-for step in graph.stream(
-    {"messages": [{"role": "user", "content": input_message}]},
-    stream_mode="values",
-    config=config,
-):
-    step["messages"][-1].pretty_print()
+    # for step in graph.stream(
+    #     {"messages": [{"role": "user", "content": input_message}]},
+    #     stream_mode="values",
+    #     config=config,
+    # ):
+    #     step["messages"][-1].pretty_print()
