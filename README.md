@@ -15,7 +15,6 @@ Open your browser
 Analyze the agent performance
 
 TODO
-4) Use doc data instead of the scraper
-5) Add more question-answers to the eval
-6) Debug the eval (json-schema required)
-7) Test the reactivity and domain-only responses
+4) Add more question-answers to the eval
+5) Debug the eval (json-schema required)
+6) Test the reactivity and domain-only responses

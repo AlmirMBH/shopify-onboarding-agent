@@ -18,12 +18,31 @@ client = Client()
 examples = [
     {
         "inputs": {
-            "question": "How to install the PO app",
+            "question": "What is a Google Merchant?",
         },
         "outputs": {
-            "response": "You have to pay first!"
+            "response": "Google Merchant Center is a centralized dashboard"
+            "that allows you to organize your e-commerce products to appear"
+            "in Google shopping searches, allowing potential customers to browse your products via Google."
         }
-        # Add the other test questions
+    },
+    {
+        "inputs": {
+            "question": "Do I need to have a Google account?",
+        },
+        "outputs": {
+            "response": "A standard Google account is a prerequisite."
+            "If you have one, verify that you are logged in. If not, you can set one up."
+        }
+    },
+    {
+        "inputs": {
+            "question": "Do I need to provide my personal data?",
+        },
+        "outputs": {
+            "response": "Google will ask you to input details, including your name and contact information."
+            "You'll also need to indicate whether your business is online, brick-and-mortar, or both."
+        }
     }
 ]
 

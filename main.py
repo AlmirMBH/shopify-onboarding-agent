@@ -18,6 +18,7 @@ os.environ["HF_TOKEN"] = getpass.getpass("Enter Huggingface token: ")
 if not os.environ.get("MISTRAL_API_KEY"):
     os.environ["MISTRAL_API_KEY"] = getpass.getpass("Enter API key for MistralAI: ")
 
+# Check if specific tokens have been set
 # import requests
 # headers = {"Authorization": f"Bearer {os.environ.get('HF_TOKEN')}"}
 # response = requests.get("https://huggingface.co/api/whoami-v2", headers=headers)
@@ -25,8 +26,6 @@ if not os.environ.get("MISTRAL_API_KEY"):
 #     print("✅ Hugging Face token is valid.")
 # else:
 #     print("❌ Hugging Face token is invalid or unauthorized.")
-
-
 
 # Install Packages
 def install(*packages):
@@ -51,7 +50,8 @@ packages_to_validate = [
     "langchain_community",
     "beautifulsoup4",
     "langgraph",
-    "pandas"
+    "pandas",
+    "python-docx"
 ]
 
 validate_and_install(packages_to_validate)
@@ -70,26 +70,34 @@ from langgraph.prebuilt import ToolNode
 from langgraph.graph import END
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver
+from langchain.schema import Document
+from docx import Document as DocxDocument
 
 llm = init_chat_model("llama3-8b-8192", model_provider="groq")
 embeddings = MistralAIEmbeddings(model="mistral-embed")
 vector_store = InMemoryVectorStore(embeddings)
 
-loader = WebBaseLoader(
-    web_paths=("https://lilianweng.github.io/posts/2023-06-23-agent/",), 
-    bs_kwargs=dict(parse_only=bs4.SoupStrainer(class_=("post-content", "post-title", "post-header"))), 
-)
+#========================Read Manuals and Store Data===============================
+manuals_folder = "manuals"
+file_path = os.path.join(manuals_folder, "PAAIProject.docx")
 
-# TODO: Feed the model with the real data
-# from langchain_community.document_loaders import GoogleDocsLoader
-# DOC_ID = "YOUR_GOOGLE_DOC_ID"
-# loader = GoogleDocsLoader(document_ids=[DOC_ID])
+if os.path.exists(file_path):
+    doc = DocxDocument(file_path)
+    file_content = "\n".join([para.text for para in doc.paragraphs])
+else:
+    raise FileNotFoundError(f"The file {file_path} does not exist.")
 
-docs = loader.load()
+docs = [Document(page_content=file_content)]
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
 all_splits = text_splitter.split_documents(docs)
-_ = vector_store.add_documents(documents=all_splits)
+response = vector_store.add_documents(documents=all_splits)
 graph_builder = StateGraph(MessagesState)
+
+# Test if data is stored and retrieved
+# print("DATA STORED IN THE DB:", response)
+# retriever = vector_store.as_retriever()
+# results = retriever.invoke("What is Google Merchant?")
+# print(f"Retrieved: {[doc.page_content for doc in results]}")
 
 
 @tool(response_format="content_and_artifact")
@@ -113,23 +121,16 @@ def query_or_respond(state: MessagesState):
     messages = [system_message] + state["messages"]
     llm_with_tools = llm.bind_tools([retrieve])
     response = llm_with_tools.invoke(messages)
+    tool_calls = getattr(response, "tool_calls", None) # Check if the response includes an empty tool-use message
 
-    # Check if the response includes an empty tool-use message
-    tool_calls = getattr(response, "tool_calls", None)
-
-    # If tool_calls attribute exists but is empty, assume no tool was needed.
-    if tool_calls is not None and not tool_calls:
+    if tool_calls is not None and not tool_calls: # If tool_calls is empty, assume no tool was needed.
         fallback = {"role": "ai", "content": "Hello! How can I assist you today?"}
         return {"messages": [fallback]}
     return {"messages": [response]}
 
 
-tools = ToolNode([retrieve])
-
-
 def generate(state: MessagesState):
-    # Get generated ToolMessages
-    recent_tool_messages = []
+    recent_tool_messages = [] # Get generated ToolMessages
 
     for message in reversed(state["messages"]):
         if message.type == "tool":
@@ -159,12 +160,10 @@ def generate(state: MessagesState):
     ]
 
     prompt = [SystemMessage(system_message_content)] + conversation_messages
-
-    # This is the moment when we start the generation, see the graph in the sections below
-    response = llm.invoke(prompt)
+    response = llm.invoke(prompt) # Here we start the generation, see the graph in the sections below
     return {"messages": [response]}
 
-
+tools = ToolNode([retrieve])
 graph_builder.add_node(query_or_respond)
 graph_builder.add_node(tools)
 graph_builder.add_node(generate)
@@ -185,9 +184,8 @@ config = {"configurable": {"thread_id": "test_123"}} # Specify an ID for the thr
 
 if __name__ == "__main__":
     
-
-    # TODO: Create a simple prompt window
-    # input_message = "Mr. Chat, how do you do!"
+    # Prompt testing
+    # input_message = "Hey GPT, what's up!"
     # for step in graph.stream(
     #     {"messages": [{"role": "user", "content": input_message}]},
     #     stream_mode="values",
@@ -195,28 +193,7 @@ if __name__ == "__main__":
     # ):
     #     step["messages"][-1].pretty_print()
 
-    # input_message = "What is Task Decomposition?"
-    # final_response = None
-
-    # for step in graph.stream(
-    #     {"messages": [{"role": "user", "content": input_message}]},
-    #     stream_mode="values",
-    #     config=config
-    # ):
-    #     last_message = step["messages"][-1].content
-    #     if last_message:
-    #         final_response = last_message
-
-    # print("\nRESPONSE:", final_response if final_response else "No response")
-        
-    # input_message = "Can you look up some common ways of doing it?"
-
-    # for step in graph.stream(
-    #     {"messages": [{"role": "user", "content": input_message}]},
-    #     stream_mode="values",
-    #     config=config,
-    # ):
-    #     step["messages"][-1].pretty_print()
+    # UI Code
     from flask import Flask, render_template, request
 
     def get_response(input_message: str):
@@ -238,10 +215,7 @@ if __name__ == "__main__":
         response = None
         if request.method == "POST":
             input_message = request.form["input_message"]
-            
-            # Call the function to get the response from the graph
-            response = get_response(input_message)
-
+            response = get_response(input_message) # Fetch the response from the graph
         return render_template("index.html", response=response)
 
     if __name__ == "__main__":
