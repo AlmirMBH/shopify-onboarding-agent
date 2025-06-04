@@ -57,28 +57,21 @@ if not client.has_dataset(dataset_name=dataset_name):
 
 
 # LLM-as-judge instructions
-grader_instructions = """
-You are a teacher grading a quiz.
+grader_instructions = """You are a teacher grading a quiz.
 
 You will be given a QUESTION, the GROUND TRUTH (correct) RESPONSE, and the STUDENT RESPONSE.
 
-Grade the student responses based ONLY on their factual accuracy relative to the ground truth answer.
-Ensure that the student response does not contain any conflicting statements.
-It is OK if the student response contains more information than the ground truth response, as long as it is factually accurate relative to the ground truth response.
+Here is the grade criteria to follow:
+(1) Grade the student responses based ONLY on their factual accuracy relative to the ground truth answer.
+(2) Ensure that the student response does not contain any conflicting statements.
+(3) It is OK if the student response contains more information than the ground truth response, as long as it is factually accurate relative to the  ground truth response.
 
-Your output MUST be a JSON object with these keys:
-- reasoning: Explain your reasoning in a step-by-step manner.
-- is_correct: true if the student's response is correct, otherwise false.
+Correctness:
+True means that the student's response meets all of the criteria.
+False means that the student's response does not meet all of the criteria.
 
-Example response:
+Explain your reasoning in a step-by-step manner to ensure your reasoning and conclusion are correct."""
 
-{
-  "reasoning": "The student's answer correctly covers all points without contradictions.",
-  "is_correct": true
-}
-
-Respond ONLY with a valid JSON object — no extra text.
-"""
 
 # LLM-as-judge output schema
 class Grade(TypedDict):
