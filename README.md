@@ -82,5 +82,5 @@ Additionally, the application should support automatic translation of responses 
 In automatic mode, translations occur without intervention.
 In manual mode, the support team selects the target language before responding.
 All conversations between customers and the support team will be stored in a separate knowledge database. This data will be used to complement the main manual during the next scheduled update. If the app owner does not perform the update within 7 days, a background process will automatically trigger it, incorporating the new knowledge from support team–customer interactions into the main manual.
-Rather than relying on an in-memory vector database, the application should use a persistent (external) vector database for storing and retrieving embeddings.
+Rather than relying on an in-memory vector database, the application should use a persistent (external) vector database for storing and retrieving embeddings. It would also be helpful to include a dedicated page for manual uploads to make the app more user-friendly. When a new file is uploaded, it should replace the existing one. This will require some backend adjustments to ensure the old file is properly replaced and its name is updated to match the format expected by the current codebase.
 
