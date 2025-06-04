@@ -25,6 +25,7 @@ c) Deactivate the virtual environment (when you're done):
 ```bash
 deactivate
 ```
+d) Add LangSmith, Groq, Hugging Face, and Mistral keys in the .env file.
 
 ## 5) Run the project
 a) Start the application by running (from the project root):
@@ -51,19 +52,29 @@ d) Review the results to analyze the agent's performance.
 This application leverages an AI-powered architecture built primarily using the LangChain framework to enable dynamic document-based question answering. The system integrates several technologies and services. It uses Groq’s LLMs (e.g., LLaMA3-8B-8192) for natural language generation, alongside MistralAI’s embedding models for semantic search and vector similarity operations. The manuals are vectorized using these embeddings and stored in an in-memory vector database for quick retrieval. 
 To manage and structure the flow of logic, the system utilizes LangGraph’s StateGraph to define a multi-node conversational workflow that processes inputs, determines whether to trigger tool usage (e.g., document retrieval), and then creates responses based on contextual information. 
 Document ingestion is handled through a DOCX parser (via python-docx), and documents are split into chunks using LangChain’s RecursiveCharacterTextSplitter. The system ensures that each manual update reflects the most current application state. The database is cleared every time the application is started and the data is replaced with updated embeddings.
-For secure environment configuration, the application retrieves API keys (LangSmith, Groq, Hugging Face, and Mistral) from a secured Google Drive.
-
+The API keys (LangSmith, Groq, Hugging Face, and Mistral) are fetched from the .env file.
 Package dependencies are validated and installed at runtime, ensuring the system is equipped with libraries such as langchain_community, beautifulsoup4, and pandas.
 All interactions and updates are traced via LangSmith for observability. The inclusion of LangGraph's memory checkpointing feature (MemorySaver) enables persistent thread tracking and debugging — similar in nature to version control systems like Git — making this application maintainable.
 
 ## 8) Agent Evaluation Overview
 In order to ensure the accuracy of the agent’s final responses, we leverage LangSmith’s evaluation framework. A dataset of sample question–answer pairs is created to represent typical user interactions with the onboarding agent. Each example is evaluated using an LLM-as-a-judge methodology.
 The grading model—llama3-70b-8192 accessed via Groq—is configured for structured output and follows strict evaluation criteria. It receives the user question, the ground truth answer, and the agent’s response. The model then determines whether the response is factually accurate, allowing for additional information as long as it does not conflict with the expected answer.
-The evaluation process is fully asynchronous and runs through LangSmith’s aevaluate() method with built-in concurrency support. Once completed, LangSmith provides a link to the evaluation results, which can also be exported as a DataFrame for further analysis.
+The evaluation process is fully asynchronous and runs through LangSmith’s aevaluate() method with built-in concurrency support. Once completed, LangSmith provides a link to the evaluation results, which can also be exported as a DataFrame for further analysis. Some of the metrics can be seen below (influenced by free third-party service limitations):
+
+![Metrics Overview](assets/metrics_1.png)
+
+![Metrics Overview](assets/metrics_2.png)
+
 
 ## 9) Frontend
+The frontend of the application is built using Python Flask, providing a lightweight and responsive web interface for interacting with the agent. It uses a simple HTML form rendered via Jinja2 templates, allowing users to submit natural language queries from the browser. Upon form submission, the input is passed to the backend, where it is handled by the LangGraph-powered agentic workflow. The resulting response is then displayed on the same page, ensuring an interaction loop. This synchronous request-response flow makes it easy to test and iterate on prompt engineering or agent behavior in real-time. The Flask server is configured to run in development mode (`debug=True`) and is accessible on `localhost:5001`, making it suitable for local demos. Here is how the frontend looks like:
 
-## 10) Next steps
+![Metrics Overview](assets/frontend.png)
+
+## 10) Known Limitations and Areas for Improvement
+The free-tier version of the used third-party services provides a limited token quota, which may cause the agent to slow down after several prompts due to quota limit. During evaluation, you might occasionally encounter "bad request" errors caused either by quota limits (specified in the error) or by the grader’s responses not matching the expected format required by LangSmith. Initially, the errors due to incorrect formatting occurred consistently, but after multiple iterations and prompt tuning, we achieved reliable, correctly formatted outputs. Additionally, when working with larger manuals, the in-memory vector database currently in use can lead to performance issues since it is frequently refreshed. This refresh process—re-ingesting, generating embeddings, and reinserting data—can introduce delays.
+
+## 11) Next steps
 As this agent is intended for customer support, it should have the ability to not automatically respond to customer requests. The application should support two modes: Automatic and Manual.
 In Automatic mode, the agent responds to customer queries immediately.
 In Manual mode, a sound notification alerts the support team of a new request, and the customer is informed that the first available agent will respond shortly. This mode allows the support team to review and edit responses before sending them.
@@ -73,8 +84,3 @@ In manual mode, the support team selects the target language before responding.
 All conversations between customers and the support team will be stored in a separate knowledge database. This data will be used to complement the main manual during the next scheduled update. If the app owner does not perform the update within 7 days, a background process will automatically trigger it, incorporating the new knowledge from support team–customer interactions into the main manual.
 Rather than relying on an in-memory vector database, the application should use a persistent (external) vector database for storing and retrieving embeddings.
 
-TODO
-Provide keys via env
-Free version does not offer too many free tokens
-Double-check the frontend
-In-memory database

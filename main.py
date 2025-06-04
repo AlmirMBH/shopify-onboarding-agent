@@ -3,22 +3,6 @@ import sys
 import subprocess
 import subprocess
 import sys
-import json
-
-#========================Environment Variables======================================
-def set_env():
-    keys_path = 'third_party_keys.json'
-    with open(keys_path) as f:
-        keys = json.load(f)
-
-    os.environ['USER_AGENT'] = 'myagent'
-    os.environ["LANGSMITH_TRACING"] = "true"
-    os.environ["LANGSMITH_API_KEY"] = keys["LANGSMITH_API_KEY"]
-    os.environ["GROQ_API_KEY"] = keys["GROQ_API_KEY"]
-    os.environ["HF_TOKEN"] = keys["HF_TOKEN"]
-    os.environ["MISTRAL_API_KEY"] = keys["MISTRAL_API_KEY"]
-
-set_env()
 
 
 #========================Packages installation======================================
@@ -45,13 +29,15 @@ packages_to_validate = [
     "beautifulsoup4",
     "langgraph",
     "pandas",
-    "python-docx"
+    "python-docx",
+    "flask",
+    "python-dotenv"
 ]
 
 validate_and_install(packages_to_validate)
 
 
-#========================Libraries=================================================
+#========================Libraries import===========================================
 from langchain.chat_models import init_chat_model
 from langchain_mistralai import MistralAIEmbeddings
 from langchain_community.document_loaders import WebBaseLoader
@@ -66,7 +52,16 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver
 from langchain.schema import Document
 from docx import Document as DocxDocument
-import bs4
+from dotenv import load_dotenv
+
+
+#========================Environment Variables Setup==============================
+def set_env():
+    load_dotenv(".env")
+    os.environ['USER_AGENT'] = 'myagent'
+    os.environ["LANGSMITH_TRACING"] = "true"
+
+set_env()
 
 
 #========================Model and Database Initialization=========================
@@ -75,7 +70,7 @@ embeddings = MistralAIEmbeddings(model="mistral-embed")
 vector_store = InMemoryVectorStore(embeddings)
 
 
-#========================Read Manuals and Store Data===============================
+#========================Fetch Manual and Store it in Database======================
 manuals_folder = "manuals"
 file_path = os.path.join(manuals_folder, "PAAIProject.docx")
 
@@ -92,8 +87,8 @@ response = vector_store.add_documents(documents=all_splits)
 graph_builder = StateGraph(MessagesState)
 
 
-#========================Tools===========================================
-@tool(response_format="content_and_artifact")
+#========================Retriever Setup===========================================
+@tool
 def retrieve(query: str):
     """Retrieve information related to a query."""
     retrieved_docs = vector_store.similarity_search(query, k=2)
@@ -104,13 +99,13 @@ def retrieve(query: str):
     return serialized, retrieved_docs
 
 
-#========================Resonse Generation===============================
+#========================Resonse Generation Setup===================================
 def query_or_respond(state: MessagesState):
     system_message = SystemMessage(
-        "You are an assistant specializing in Google Merchant Center." \
-        "Use the 'retrieve' tool only for questions about setting up and managing Google Merchant Center accounts, including topics like" \
-        "account creation, business verification, shipping, sales tax, product listing requirements, and Google policies." \
-        "For greetings or general questions unrelated to Google Merchant Center, provide a direct answer without calling any tools."
+     "You are an assistant specialized in Google Merchant Center. "
+    "Always use the 'retrieve' tool if the question relates to setup, verification, tax," \
+    "shipping, product listing, or policies. Only answer directly if it's a greeting or" \
+    "not related to Google Merchant Center."
     )
 
     messages = [system_message] + state["messages"]
@@ -119,13 +114,12 @@ def query_or_respond(state: MessagesState):
     tool_calls = getattr(response, "tool_calls", None)
 
     if tool_calls is not None and not tool_calls:
-        fallback = {"role": "ai", "content": "Hello! How can I assist you today?"}
-        return {"messages": [fallback]}
+        return {"messages": [response]}
     return {"messages": [response]}
 
 
 def generate(state: MessagesState):
-    recent_tool_messages = [] # Get generated ToolMessages
+    recent_tool_messages = []
 
     for message in reversed(state["messages"]):
         if message.type == "tool":
@@ -134,7 +128,6 @@ def generate(state: MessagesState):
             break
 
     tool_messages = recent_tool_messages[::-1]
-
     docs_content = "\n\n".join(tool_message.content for tool_message in tool_messages if hasattr(tool_message, 'content'))
 
     system_message_content = (
@@ -153,7 +146,7 @@ def generate(state: MessagesState):
     ]
 
     prompt = [SystemMessage(system_message_content)] + conversation_messages
-    response = llm.invoke(prompt) # Here we start the generation, see the graph in the sections below
+    response = llm.invoke(prompt)
     return {"messages": [response]}
 
 
@@ -172,25 +165,13 @@ graph_builder.add_conditional_edges(
 
 graph_builder.add_edge("tools", "generate")
 graph_builder.add_edge("generate", END)
-
 memory = MemorySaver()
 graph = graph_builder.compile(checkpointer=memory)
 config = {"configurable": {"thread_id": "test_123"}}
 
 
 #========================Fronetend===============================
-if __name__ == "__main__":
-    
-    # Prompt testing
-    # input_message = "Hey GPT, what's up!"
-    # for step in graph.stream(
-    #     {"messages": [{"role": "user", "content": input_message}]},
-    #     stream_mode="values",
-    #     config=config
-    # ):
-    #     step["messages"][-1].pretty_print()
-
-    # UI Code
+if __name__ == "__main__":    
     from flask import Flask, render_template, request
 
     def get_response(input_message: str):
@@ -212,7 +193,7 @@ if __name__ == "__main__":
         response = None
         if request.method == "POST":
             input_message = request.form["input_message"]
-            response = get_response(input_message) # Fetch the response from the graph
+            response = get_response(input_message)
         return render_template("index.html", response=response)
 
     if __name__ == "__main__":
