@@ -1,33 +1,27 @@
 import os
-import getpass
 import sys
 import subprocess
 import subprocess
 import sys
+import json
 
-# Set the Environment Variables
-os.environ['USER_AGENT'] = 'myagent'
-os.environ["LANGSMITH_TRACING"] = "true"
-os.environ["LANGSMITH_API_KEY"] = getpass.getpass("Enter LangSmith API key: ")
+#========================Environment Variables======================================
+def set_env():
+    keys_path = 'third_party_keys.json'
+    with open(keys_path) as f:
+        keys = json.load(f)
 
-if not os.environ.get("GROQ_API_KEY"):
-    os.environ["GROQ_API_KEY"] = getpass.getpass("Enter API key for Groq: ")
+    os.environ['USER_AGENT'] = 'myagent'
+    os.environ["LANGSMITH_TRACING"] = "true"
+    os.environ["LANGSMITH_API_KEY"] = keys["LANGSMITH_API_KEY"]
+    os.environ["GROQ_API_KEY"] = keys["GROQ_API_KEY"]
+    os.environ["HF_TOKEN"] = keys["HF_TOKEN"]
+    os.environ["MISTRAL_API_KEY"] = keys["MISTRAL_API_KEY"]
 
-os.environ["HF_TOKEN"] = getpass.getpass("Enter Huggingface token: ")
+set_env()
 
-if not os.environ.get("MISTRAL_API_KEY"):
-    os.environ["MISTRAL_API_KEY"] = getpass.getpass("Enter API key for MistralAI: ")
 
-# Check if specific tokens have been set
-# import requests
-# headers = {"Authorization": f"Bearer {os.environ.get('HF_TOKEN')}"}
-# response = requests.get("https://huggingface.co/api/whoami-v2", headers=headers)
-# if response.status_code == 200:
-#     print("✅ Hugging Face token is valid.")
-# else:
-#     print("❌ Hugging Face token is invalid or unauthorized.")
-
-# Install Packages
+#========================Packages installation======================================
 def install(*packages):
     try:
         subprocess.check_call([sys.executable, "-m", "pip", "install", *packages])
@@ -55,9 +49,9 @@ packages_to_validate = [
 ]
 
 validate_and_install(packages_to_validate)
-import bs4
 
-# Import the Required Libraries
+
+#========================Libraries=================================================
 from langchain.chat_models import init_chat_model
 from langchain_mistralai import MistralAIEmbeddings
 from langchain_community.document_loaders import WebBaseLoader
@@ -72,10 +66,14 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver
 from langchain.schema import Document
 from docx import Document as DocxDocument
+import bs4
 
+
+#========================Model and Database Initialization=========================
 llm = init_chat_model("llama3-8b-8192", model_provider="groq")
 embeddings = MistralAIEmbeddings(model="mistral-embed")
 vector_store = InMemoryVectorStore(embeddings)
+
 
 #========================Read Manuals and Store Data===============================
 manuals_folder = "manuals"
@@ -93,17 +91,12 @@ all_splits = text_splitter.split_documents(docs)
 response = vector_store.add_documents(documents=all_splits)
 graph_builder = StateGraph(MessagesState)
 
-# Test if data is stored and retrieved
-# print("DATA STORED IN THE DB:", response)
-# retriever = vector_store.as_retriever()
-# results = retriever.invoke("What is Google Merchant?")
-# print(f"Retrieved: {[doc.page_content for doc in results]}")
 
-
+#========================Tools===========================================
 @tool(response_format="content_and_artifact")
 def retrieve(query: str):
     """Retrieve information related to a query."""
-    retrieved_docs = vector_store.similarity_search(query, k=2) # k is the number of search results
+    retrieved_docs = vector_store.similarity_search(query, k=2)
     serialized = "\n\n".join(
         (f"Source: {doc.metadata}\n" f"Content: {doc.page_content}")
         for doc in retrieved_docs
@@ -111,19 +104,21 @@ def retrieve(query: str):
     return serialized, retrieved_docs
 
 
+#========================Resonse Generation===============================
 def query_or_respond(state: MessagesState):
-    system_message = SystemMessage( # Append a clear system instruction
-        "You are an assistant. Only use the 'retrieve' tool for domain-specific questions. "
-        "For general or conversational queries such as greetings or 'can you help me with something', "
-        "provide a direct answer without calling any tools."
+    system_message = SystemMessage(
+        "You are an assistant specializing in Google Merchant Center." \
+        "Use the 'retrieve' tool only for questions about setting up and managing Google Merchant Center accounts, including topics like" \
+        "account creation, business verification, shipping, sales tax, product listing requirements, and Google policies." \
+        "For greetings or general questions unrelated to Google Merchant Center, provide a direct answer without calling any tools."
     )
 
     messages = [system_message] + state["messages"]
     llm_with_tools = llm.bind_tools([retrieve])
     response = llm_with_tools.invoke(messages)
-    tool_calls = getattr(response, "tool_calls", None) # Check if the response includes an empty tool-use message
+    tool_calls = getattr(response, "tool_calls", None)
 
-    if tool_calls is not None and not tool_calls: # If tool_calls is empty, assume no tool was needed.
+    if tool_calls is not None and not tool_calls:
         fallback = {"role": "ai", "content": "Hello! How can I assist you today?"}
         return {"messages": [fallback]}
     return {"messages": [response]}
@@ -140,8 +135,6 @@ def generate(state: MessagesState):
 
     tool_messages = recent_tool_messages[::-1]
 
-    # Format into prompt
-    # docs_content = "\n\n".join(tool_messages.content for tool_message in tool_messages)
     docs_content = "\n\n".join(tool_message.content for tool_message in tool_messages if hasattr(tool_message, 'content'))
 
     system_message_content = (
@@ -163,6 +156,8 @@ def generate(state: MessagesState):
     response = llm.invoke(prompt) # Here we start the generation, see the graph in the sections below
     return {"messages": [response]}
 
+
+#========================Graph and Execution Setup====================
 tools = ToolNode([retrieve])
 graph_builder.add_node(query_or_respond)
 graph_builder.add_node(tools)
@@ -178,10 +173,12 @@ graph_builder.add_conditional_edges(
 graph_builder.add_edge("tools", "generate")
 graph_builder.add_edge("generate", END)
 
-memory = MemorySaver() # Init chat persistance
-graph = graph_builder.compile(checkpointer=memory) # Compile with the peristance layer (similar to git logs)
-config = {"configurable": {"thread_id": "test_123"}} # Specify an ID for the thread (similar to git branch)
+memory = MemorySaver()
+graph = graph_builder.compile(checkpointer=memory)
+config = {"configurable": {"thread_id": "test_123"}}
 
+
+#========================Fronetend===============================
 if __name__ == "__main__":
     
     # Prompt testing

@@ -11,10 +11,12 @@ from langgraph.graph.message import AnyMessage, add_messages
 from langgraph.types import Command, interrupt
 from typing_extensions import Annotated, TypedDict
 from langsmith import Client
+from main import set_env
+
+set_env()
 
 client = Client()
 
-# Create a dataset
 examples = [
     {
         "inputs": {
@@ -43,6 +45,22 @@ examples = [
             "response": "Google will ask you to input details, including your name and contact information."
             "You'll also need to indicate whether your business is online, brick-and-mortar, or both."
         }
+    },
+    {
+        "inputs": {
+            "question": "Do I need to verify my website?"
+        },
+        "outputs": {
+            "response": "Yes, to link your website to the Merchant Center account, Google requires you to verify ownership and claim your website URL. This can be done by adding an HTML tag or file to your site, or by using Google Analytics if it's already installed."
+        }
+    },
+    {
+        "inputs": {
+            "question": "How do I handle sales tax when setting up my account?"
+        },
+        "outputs": {
+            "response": "Google will suggest a tax setup based on your business location. You can allow Google to calculate the sales tax automatically or configure it manually. You’ll also be able to specify whether shipping and handling charges are taxable."
+        }
     }
 ]
 
@@ -57,21 +75,28 @@ if not client.has_dataset(dataset_name=dataset_name):
 
 
 # LLM-as-judge instructions
-grader_instructions = """You are a teacher grading a quiz.
+grader_instructions = """
+You are a teacher grading a quiz.
 
 You will be given a QUESTION, the GROUND TRUTH (correct) RESPONSE, and the STUDENT RESPONSE.
 
-Here is the grade criteria to follow:
-(1) Grade the student responses based ONLY on their factual accuracy relative to the ground truth answer.
-(2) Ensure that the student response does not contain any conflicting statements.
-(3) It is OK if the student response contains more information than the ground truth response, as long as it is factually accurate relative to the  ground truth response.
+Grade the student responses based ONLY on their factual accuracy relative to the ground truth answer.
+Ensure that the student response does not contain any conflicting statements.
+It is OK if the student response contains more information than the ground truth response, as long as it is factually accurate relative to the ground truth response.
 
-Correctness:
-True means that the student's response meets all of the criteria.
-False means that the student's response does not meet all of the criteria.
+Your output MUST be a JSON object with these keys:
+- reasoning: Explain your reasoning in a step-by-step manner.
+- is_correct: true if the student's response is correct, otherwise false.
 
-Explain your reasoning in a step-by-step manner to ensure your reasoning and conclusion are correct."""
+Example response:
 
+{
+  "reasoning": "The student's answer correctly covers all points without contradictions.",
+  "is_correct": true
+}
+
+Respond ONLY with a valid JSON object — no extra text.
+"""
 
 # LLM-as-judge output schema
 class Grade(TypedDict):

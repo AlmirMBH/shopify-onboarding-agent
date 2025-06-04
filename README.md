@@ -74,4 +74,7 @@ All conversations between customers and the support team will be stored in a sep
 Rather than relying on an in-memory vector database, the application should use a persistent (external) vector database for storing and retrieving embeddings.
 
 TODO
-Provide keys via Google Drive
+Provide keys via env
+Free version does not offer too many free tokens
+Double-check the frontend
+In-memory database
