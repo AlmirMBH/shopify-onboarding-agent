@@ -1,18 +1,18 @@
 # Onboarding Agent
 
-## 1) Onboarding Agent Idea
+## Onboarding Agent Idea
 The company we work for handles a high volume of daily interactions between the support team and application users. Customers ask a wide range of questions — from app installation to product customization, including banners, colors, margins, sales conditions, and more.
 The purpose of this agent is to reduce the manual workload for our support team. Since we offer a wide variety of customizations, our manuals are updated frequently. Every time we release a new feature, fix a bug, simplify a customization process, or remove an unused feature, the manual must be updated accordingly. This requires close collaboration between the support and development teams. The support staff must stay informed about all changes, fully understand them and be able to use and explain the new features to the customers.
 With nearly 50 applications and only about 60 customer support staff, it is easy to see how overwhelming it can be for any one person to keep track of 5–10 applications, monitor ongoing changes, and confidently explain every feature.
 Our goal is to help the customer support team by reducing the number of incoming tickets. This would give them more time to deepen their knowledge of the applications and work more effectively with the development team.
 
-## 2) About the Onboarding Agent
+## About the Onboarding Agent
 The idea behind our agent is straightforward. Each time the manual is updated, the latest version is uploaded to the application. The old manual data is removed from the database, and the new content is vectorized and stored.
 
-## 3) How to use the application
+## How to use the application
 When the application is started (see description below), it can be accessed via link provided in the terminal and it is http://192.168.0.19:5001/. There is nothing that customers or the support team need to do. The customers can start prompting the agent and the agent will be responding immediately.
 
-## 4) Setup
+## Setup
 a) Create the virtual environment (from the project root):
 ```bash
 python3.12 -m venv .venv
@@ -27,7 +27,7 @@ deactivate
 ```
 d) Add LangSmith, Groq, Hugging Face, and Mistral keys in the .env file.
 
-## 5) Run the project
+## Run the project
 a) Start the application by running (from the project root):
 ```bash
 python main.py 
@@ -39,7 +39,7 @@ http://192.168.0.19:5001/
 ```
 c) Enter prompts in the interface — the agent will respond with answers.
 
-## 6) Evaluate agent
+## Evaluate agent
 a) Run the evaluation script:
 ```bash
 python model_eval.py
@@ -48,7 +48,7 @@ b) Click on the link that is generated in the terminal.
 c) Or open it in your browser to view the evaluation dashboard.
 d) Review the results to analyze the agent's performance.
 
-## 7) Technologies
+## Technologies
 This application leverages an AI-powered architecture built primarily using the LangChain framework to enable dynamic document-based question answering. The system integrates several technologies and services. It uses Groq’s LLMs (e.g., LLaMA3-8B-8192) for natural language generation, alongside MistralAI’s embedding models for semantic search and vector similarity operations. The manuals are vectorized using these embeddings and stored in an in-memory vector database for quick retrieval. 
 To manage and structure the flow of logic, the system utilizes LangGraph’s StateGraph to define a multi-node conversational workflow that processes inputs, determines whether to trigger tool usage (e.g., document retrieval), and then creates responses based on contextual information. 
 Document ingestion is handled through a DOCX parser (via python-docx), and documents are split into chunks using LangChain’s RecursiveCharacterTextSplitter. The system ensures that each manual update reflects the most current application state. The database is cleared every time the application is started and the data is replaced with updated embeddings.
@@ -56,7 +56,7 @@ The API keys (LangSmith, Groq, Hugging Face, and Mistral) are fetched from the .
 Package dependencies are validated and installed at runtime, ensuring the system is equipped with libraries such as langchain_community, beautifulsoup4, and pandas.
 All interactions and updates are traced via LangSmith for observability. The inclusion of LangGraph's memory checkpointing feature (MemorySaver) enables persistent thread tracking and debugging — similar in nature to version control systems like Git — making this application maintainable.
 
-## 8) Agent Evaluation Overview
+## Agent Evaluation Overview
 In order to ensure the accuracy of the agent’s final responses, we leverage LangSmith’s evaluation framework. A dataset of sample question–answer pairs is created to represent typical user interactions with the onboarding agent. Each example is evaluated using an LLM-as-a-judge methodology.
 The grading model—llama3-70b-8192 accessed via Groq—is configured for structured output and follows strict evaluation criteria. It receives the user question, the ground truth answer, and the agent’s response. The model then determines whether the response is factually accurate, allowing for additional information as long as it does not conflict with the expected answer.
 The evaluation process is fully asynchronous and runs through LangSmith’s aevaluate() method with built-in concurrency support. Once completed, LangSmith provides a link to the evaluation results, which can also be exported as a DataFrame for further analysis. Some of the metrics can be seen below (influenced by free third-party service limitations):
@@ -65,16 +65,15 @@ The evaluation process is fully asynchronous and runs through LangSmith’s aeva
 
 ![Metrics Overview](assets/metrics_2.png)
 
-
-## 9) Frontend
+## Frontend
 The frontend of the application is built using Python Flask, providing a lightweight and responsive web interface for interacting with the agent. It uses a simple HTML form rendered via Jinja2 templates, allowing users to submit natural language queries from the browser. Upon form submission, the input is passed to the backend, where it is handled by the LangGraph-powered agentic workflow. The resulting response is then displayed on the same page, ensuring an interaction loop. This synchronous request-response flow makes it easy to test and iterate on prompt engineering or agent behavior in real-time. The Flask server is configured to run in development mode (`debug=True`) and is accessible on `localhost:5001`, making it suitable for local demos. Here is how the frontend looks like:
 
 ![Metrics Overview](assets/frontend.png)
 
-## 10) Known Limitations and Areas for Improvement
+## Known Limitations and Areas for Improvement
 The free-tier version of the used third-party services provides a limited token quota, which may cause the agent to slow down after several prompts due to quota limit. During evaluation, you might occasionally encounter "bad request" errors caused either by quota limits (specified in the error) or by the grader’s responses not matching the expected format required by LangSmith. Initially, the errors due to incorrect formatting occurred consistently, but after multiple iterations and prompt tuning, we achieved reliable, correctly formatted outputs. Additionally, when working with larger manuals, the in-memory vector database currently in use can lead to performance issues since it is frequently refreshed. This refresh process—re-ingesting, generating embeddings, and reinserting data—can introduce delays.
 
-## 11) Next steps
+## Next steps
 As this agent is intended for customer support, it should have the ability to not automatically respond to customer requests. The application should support two modes: Automatic and Manual.
 In Automatic mode, the agent responds to customer queries immediately.
 In Manual mode, a sound notification alerts the support team of a new request, and the customer is informed that the first available agent will respond shortly. This mode allows the support team to review and edit responses before sending them.
@@ -83,4 +82,32 @@ In automatic mode, translations occur without intervention.
 In manual mode, the support team selects the target language before responding.
 All conversations between customers and the support team will be stored in a separate knowledge database. This data will be used to complement the main manual during the next scheduled update. If the app owner does not perform the update within 7 days, a background process will automatically trigger it, incorporating the new knowledge from support team–customer interactions into the main manual.
 Rather than relying on an in-memory vector database, the application should use a persistent (external) vector database for storing and retrieving embeddings. It would also be helpful to include a dedicated page for manual uploads to make the app more user-friendly. When a new file is uploaded, it should replace the existing one. This will require some backend adjustments to ensure the old file is properly replaced and its name is updated to match the format expected by the current codebase.
+
+## License
+This project is licensed under the [MIT License](./LICENSE).
+
+## Acknowledgments
+This project uses the following third-party libraries, models, and services:
+
+- [OpenAI API](https://openai.com/) — used via LangChain, subject to [OpenAI Terms of Use](https://openai.com/policies/terms-of-use).
+- [Mistral models](https://mistral.ai/) — used via `langchain_mistralai`, licensed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0).
+- [LangChain](https://www.langchain.com/) — [MIT License](https://github.com/langchain-ai/langchain/blob/master/LICENSE).
+- [LangSmith](https://www.langchain.com/langsmith) — subject to [LangChain Terms of Use](https://www.langchain.com/legal/terms).
+- [LangGraph](https://github.com/langchain-ai/langgraph) — [MIT License](https://github.com/langchain-ai/langgraph/blob/main/LICENSE).
+- [Groq API](https://groq.com/) — used as an LLM provider; subject to [Groq Terms of Use](https://groq.com/legal/terms/).
+- [Meta LLaMA 3](https://ai.meta.com/llama/) — model weights licensed under the [Meta LLaMA 3 License](https://ai.meta.com/llama/license/).
+- [BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/) — [MIT License](https://github.com/wention/BeautifulSoup4/blob/master/LICENSE).
+- [Flask](https://flask.palletsprojects.com/) — [BSD-3-Clause License](https://github.com/pallets/flask/blob/main/LICENSE.rst).
+- [pandas](https://pandas.pydata.org/) — [BSD License](https://github.com/pandas-dev/pandas/blob/main/LICENSE).
+- [python-docx](https://github.com/python-openxml/python-docx) — [MIT License](https://github.com/python-openxml/python-docx/blob/master/LICENSE).
+- [python-dotenv](https://github.com/theskumar/python-dotenv) — [BSD-3-Clause License](https://github.com/theskumar/python-dotenv/blob/master/LICENSE).
+
+Please refer to each tool’s respective license and terms for detailed usage rights.
+
+## Requirements
+This project is built and tested with **Python 3.10+**.
+
+## Disclaimer
+The example Q&A dataset used in this project is for testing and demonstration purposes only. It does not represent official documentation or advice.
+
 
