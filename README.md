@@ -1,10 +1,8 @@
 # Onboarding Agent
 
 ## Onboarding Agent Idea
-The company we work for handles a high volume of daily interactions between the support team and application users. Customers ask a wide range of questions — from app installation to product customization, including banners, colors, margins, sales conditions, and more.
-The purpose of this agent is to reduce the manual workload for our support team. Since we offer a wide variety of customizations, our manuals are updated frequently. Every time we release a new feature, fix a bug, simplify a customization process, or remove an unused feature, the manual must be updated accordingly. This requires close collaboration between the support and development teams. The support staff must stay informed about all changes, fully understand them and be able to use and explain the new features to the customers.
-With nearly 50 applications and only about 60 customer support staff, it is easy to see how overwhelming it can be for any one person to keep track of 5–10 applications, monitor ongoing changes, and confidently explain every feature.
-Our goal is to help the customer support team by reducing the number of incoming tickets. This would give them more time to deepen their knowledge of the applications and work more effectively with the development team.
+## Project Background
+As part of the *Practical Application of Artificial Intelligence* course led by Professor Kenan Sehić, we were tasked with developing a group project that addresses a real-world problem using AI. Our project focuses on reducing the manual workload of a customer support team at the company we work for. The company manages dozens of applications and handles a high volume of daily inquiries — ranging from installation guidance to advanced product customization (e.g., banners, margins, sales settings, etc.). Also, frequent product updates require constant manual revisions to support documentation. Our AI-based support agent aims to reduce the number of incoming tickets by automatically addressing common and repetitive user queries.
 
 ## About the Onboarding Agent
 The idea behind our agent is straightforward. Each time the manual is updated, the latest version is uploaded to the application. The old manual data is removed from the database, and the new content is vectorized and stored.
@@ -13,40 +11,38 @@ The idea behind our agent is straightforward. Each time the manual is updated, t
 When the application is started (see description below), it can be accessed via link provided in the terminal and it is http://192.168.0.19:5001/. There is nothing that customers or the support team need to do. The customers can start prompting the agent and the agent will be responding immediately.
 
 ## Setup
-a) Create the virtual environment (from the project root):
+Create the virtual environment (from the project root):
 ```bash
 python3.12 -m venv .venv
 ```
-b) Activate the virtual environment:
+Activate the virtual environment:
 ```bash
 source .venv/bin/activate
 ```
-c) Deactivate the virtual environment (when you're done):
+Deactivate the virtual environment (when you're done):
 ```bash
 deactivate
 ```
-d) Add LangSmith, Groq, Hugging Face, and Mistral keys in the .env file.
+Add LangSmith, Groq, Hugging Face, and Mistral keys in the .env file.
 
 ## Run the project
-a) Start the application by running (from the project root):
+Start the application by running (from the project root):
 ```bash
 python main.py 
 ```
-(Wait until the debugger is activated and the server is ready.)
-b) Open your browser and navigate to:
+Wait until the debugger is activated and the server is ready. Open your browser and navigate to:
 ```
 http://192.168.0.19:5001/
 ```
-c) Enter prompts in the interface — the agent will respond with answers.
+Enter prompts in the interface — the agent will respond with answers.
 
 ## Evaluate agent
-a) Run the evaluation script:
+Run the evaluation script:
 ```bash
 python model_eval.py
 ```
-b) Click on the link that is generated in the terminal.
-c) Or open it in your browser to view the evaluation dashboard.
-d) Review the results to analyze the agent's performance.
+Click on the link that is generated in the terminal
+or open the link in your browser to view the evaluation dashboard.
 
 ## Technologies
 This application leverages an AI-powered architecture built primarily using the LangChain framework to enable dynamic document-based question answering. The system integrates several technologies and services. It uses Groq’s LLMs (e.g., LLaMA3-8B-8192) for natural language generation, alongside MistralAI’s embedding models for semantic search and vector similarity operations. The manuals are vectorized using these embeddings and stored in an in-memory vector database for quick retrieval. 
@@ -58,8 +54,8 @@ All interactions and updates are traced via LangSmith for observability. The inc
 
 ## Agent Evaluation Overview
 In order to ensure the accuracy of the agent’s final responses, we leverage LangSmith’s evaluation framework. A dataset of sample question–answer pairs is created to represent typical user interactions with the onboarding agent. Each example is evaluated using an LLM-as-a-judge methodology.
-The grading model—llama3-70b-8192 accessed via Groq—is configured for structured output and follows strict evaluation criteria. It receives the user question, the ground truth answer, and the agent’s response. The model then determines whether the response is factually accurate, allowing for additional information as long as it does not conflict with the expected answer.
-The evaluation process is fully asynchronous and runs through LangSmith’s aevaluate() method with built-in concurrency support. Once completed, LangSmith provides a link to the evaluation results, which can also be exported as a DataFrame for further analysis. Some of the metrics can be seen below (influenced by free third-party service limitations):
+The grading model—llama3-70b-8192 accessed via Groq—is configured for structured output and follows evaluation criteria. It receives the user question, the ground truth answer, and the agent’s response. The model then determines whether the response is factually accurate, allowing for additional information as long as it does not conflict with the expected answer.
+Once completed, LangSmith provides a link to the evaluation results, which can also be exported as a DataFrame for further analysis. Some of the metrics can be seen below (influenced by free third-party service limitations):
 
 ![Metrics Overview](assets/metrics_1.png)
 
@@ -108,6 +104,4 @@ Please refer to each tool’s respective license and terms for detailed usage ri
 This project is built and tested with **Python 3.10+**.
 
 ## Disclaimer
-The example Q&A dataset used in this project is for testing and demonstration purposes only. It does not represent official documentation or advice.
-
-
+The example of the manual used in this project is for testing and demonstration purposes only. It does not represent official documentation or advice.
