@@ -1,6 +1,5 @@
 # Onboarding Agent
 
-## Onboarding Agent Idea
 ## Project Background
 As part of the *Practical Application of Artificial Intelligence* course led by Professor Kenan Sehić, we were tasked with developing a group project that addresses a real-world problem using AI. Our project focuses on reducing the manual workload of a customer support team at the company we work for. The company manages dozens of applications and handles a high volume of daily inquiries — ranging from installation guidance to advanced product customization (e.g., banners, margins, sales settings, etc.). Also, frequent product updates require constant manual revisions to support documentation. Our AI-based support agent aims to reduce the number of incoming tickets by automatically addressing common and repetitive user queries.
 
