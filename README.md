@@ -62,11 +62,16 @@ or open the link in your browser to view the evaluation dashboard.
 ## Agent Evaluation Overview
 In order to ensure the accuracy of the agent’s final responses, we leverage LangSmith’s evaluation framework. A dataset of sample question–answer pairs is created to represent typical user interactions with the onboarding agent. Each example is evaluated using an LLM-as-a-judge methodology.
 The grading model—llama3-70b-8192 is configured for structured output and follows evaluation criteria. It receives the user question, the ground truth answer, and the agent’s response. The model then determines whether the response is factually accurate, allowing for additional information as long as it does not conflict with the expected answer.
-Once completed, LangSmith provides a link to the evaluation results. Some of the metrics can be seen below (influenced by free third-party service limitations):
+Once completed, LangSmith provides a link to the evaluation results. Some of the metrics can be seen below. The first image below shows project actual statistics, while the second shows the evaluator statistics.
+The actual project runs processed significantly more tokens per run on average, which explains the longer response times compared to the evaluators. Despite the larger workload, the project runs maintained a excellent error rate over 24 runs, demonstrating stable performance. In contrast, the evaluator runs involved smaller token counts, leading to faster responses but a higher error rate of 8%, likely due to token limits and edge-case testing scenarios. Overall, the real project usage shows consistent reliability under heavier loads, while the evaluators highlight areas where errors may occur under constrained conditions.
+
+
 
 ![Metrics Overview](assets/metrics_1.png)
+LangChain Project Run Performance Statistics
 
 ![Metrics Overview](assets/metrics_2.png)
+LangChain Evaluator Run Performance Statistics
 
 ## Known Limitations and Areas for Improvement
 The free-tier version of the used third-party services provides a limited token quota, which may cause the agent to slow down after several prompts due to quota limit. During evaluation, you might occasionally encounter "bad request" errors caused either by quota limits (specified in the error) or by the grader’s responses not matching the expected format required by LangSmith. Initially, the errors due to incorrect formatting occurred consistently, but after multiple iterations and prompt tuning, we achieved reliable, correctly formatted outputs. Additionally, when working with larger manuals, the in-memory vector database currently in use can lead to performance issues since it is frequently refreshed. This refresh process—re-ingesting, generating embeddings, and reinserting data—can introduce delays.

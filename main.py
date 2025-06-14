@@ -57,7 +57,7 @@ from dotenv import load_dotenv
 
 #========================Environment Variables Setup==============================
 def set_env():
-    load_dotenv(".env")
+    load_dotenv(".env", override=True)
     os.environ['USER_AGENT'] = 'myagent'
     os.environ["LANGSMITH_TRACING"] = "true"
 
